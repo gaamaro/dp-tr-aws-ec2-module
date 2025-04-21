@@ -9,3 +9,8 @@ output "public_ip" {
 output "ssh_connect" {
   value = "ssh -i ~/.ssh/${var.ssh_key_name}.pem ubuntu@${aws_instance.this.public_ip}"
 }
+
+output "tags" {
+  description = "Tags aplicadas na instância"
+  value       = aws_instance.this.tags
+}
