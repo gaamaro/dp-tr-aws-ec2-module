@@ -1,19 +1,31 @@
 resource "aws_vpc" "this" {
-  cidr_block = "10.0.0.0/16"
+  count             = var.vpc_id == null ? 1 : 0
+  cidr_block        = "10.0.0.0/16"
+  enable_dns_support = true
+  enable_dns_hostnames = true
+  tags = {
+    Name = "vpc-terraform"
+  }
 }
 
 resource "aws_internet_gateway" "this" {
-  vpc_id = aws_vpc.this.id
+  vpc_id = var.vpc_id != null ? var.vpc_id : aws_vpc.this[0].id
 }
 
-resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.this.id
-  cidr_block              = "10.0.1.0/24"
+resource "aws_subnet" "this" {
+  count             = var.subnet_id == null ? 1 : 0
+  vpc_id            = var.vpc_id != null ? var.vpc_id : aws_vpc.this[0].id
+  cidr_block        = "10.0.1.0/24"
+  availability_zone = "us-east-1a"
   map_public_ip_on_launch = true
+
+  tags = {
+    Name = "subnet-terraform"
+  }
 }
 
 resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.this.id
+  vpc_id = var.vpc_id != null ? var.vpc_id : aws_vpc.this[0].id
 }
 
 resource "aws_route" "internet_access" {
@@ -23,14 +35,14 @@ resource "aws_route" "internet_access" {
 }
 
 resource "aws_route_table_association" "public" {
-  subnet_id      = aws_subnet.public.id
+  subnet_id = var.subnet_id != null ? var.subnet_id : aws_subnet.this[0].id
   route_table_id = aws_route_table.public.id
 }
 
 resource "aws_security_group" "ec2_sg" {
   name        = "${var.instance_name}-sg"
   description = "Segurança da instância EC2"
-  vpc_id      = aws_vpc.this.id
+  vpc_id = var.vpc_id != null ? var.vpc_id : aws_vpc.this[0].id
 
   ingress {
     description = "SSH"
@@ -83,7 +95,7 @@ resource "aws_security_group" "ec2_sg" {
 resource "aws_instance" "this" {
   ami                    = "ami-084568db4383264d4"
   instance_type          = "t2.medium"
-  subnet_id              = aws_subnet.public.id
+  subnet_id = var.subnet_id != null ? var.subnet_id : aws_subnet.this[0].id
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
   key_name               = var.ssh_key_name
 

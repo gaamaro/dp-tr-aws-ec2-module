@@ -13,3 +13,15 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "vpc_id" {
+  description = "ID da VPC existente. Se não fornecido, será criada uma nova."
+  type        = string
+  default     = null
+}
+
+variable "subnet_id" {
+  description = "ID da subnet existente. Se não fornecido, será criada uma nova."
+  type        = string
+  default     = null
+}
