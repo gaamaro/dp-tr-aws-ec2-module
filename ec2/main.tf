@@ -21,7 +21,7 @@ locals {
 
 resource "aws_security_group" "ec2_sg" {
   name        = "${var.instance_name}-sg"
-  description = "Segurança da instância EC2"
+  description = "EC2 SG"
   vpc_id      = local.final_vpc_id
 
   ingress {
