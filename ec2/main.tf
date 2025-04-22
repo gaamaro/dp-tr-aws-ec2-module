@@ -1,48 +1,28 @@
-resource "aws_vpc" "this" {
-  count             = var.vpc_id == null ? 1 : 0
-  cidr_block        = "10.0.0.0/16"
-  enable_dns_support = true
-  enable_dns_hostnames = true
-  tags = {
-    Name = "vpc-terraform"
+# Busca a VPC default caso o usuário não informe uma
+data "aws_vpc" "default" {
+  count   = var.vpc_id == null ? 1 : 0
+  default = true
+}
+
+# Busca as subnets associadas à VPC default
+data "aws_subnets" "default_subnets" {
+  count = var.subnet_id == null ? 1 : 0
+
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default[0].id]
   }
 }
 
-resource "aws_internet_gateway" "this" {
-  vpc_id = var.vpc_id != null ? var.vpc_id : aws_vpc.this[0].id
-}
-
-resource "aws_subnet" "this" {
-  count             = var.subnet_id == null ? 1 : 0
-  vpc_id            = var.vpc_id != null ? var.vpc_id : aws_vpc.this[0].id
-  cidr_block        = "10.0.1.0/24"
-  availability_zone = "us-east-1a"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "subnet-terraform"
-  }
-}
-
-resource "aws_route_table" "public" {
-  vpc_id = var.vpc_id != null ? var.vpc_id : aws_vpc.this[0].id
-}
-
-resource "aws_route" "internet_access" {
-  route_table_id         = aws_route_table.public.id
-  destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.this.id
-}
-
-resource "aws_route_table_association" "public" {
-  subnet_id = var.subnet_id != null ? var.subnet_id : aws_subnet.this[0].id
-  route_table_id = aws_route_table.public.id
+locals {
+  final_vpc_id    = var.vpc_id    != null ? var.vpc_id    : data.aws_vpc.default[0].id
+  final_subnet_id = var.subnet_id != null ? var.subnet_id : data.aws_subnets.default_subnets[0].ids[0]
 }
 
 resource "aws_security_group" "ec2_sg" {
   name        = "${var.instance_name}-sg"
   description = "Segurança da instância EC2"
-  vpc_id = var.vpc_id != null ? var.vpc_id : aws_vpc.this[0].id
+  vpc_id      = local.final_vpc_id
 
   ingress {
     description = "SSH"
@@ -83,6 +63,7 @@ resource "aws_security_group" "ec2_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   egress {
     description = "Allow all outbound traffic"
     from_port   = 0
@@ -93,11 +74,11 @@ resource "aws_security_group" "ec2_sg" {
 }
 
 resource "aws_instance" "this" {
-  ami                    = "ami-084568db4383264d4"
-  instance_type          = "t2.medium"
-  subnet_id = var.subnet_id != null ? var.subnet_id : aws_subnet.this[0].id
-  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
-  key_name               = var.ssh_key_name
+  ami                         = "ami-084568db4383264d4"
+  instance_type               = "t2.medium"
+  subnet_id                   = local.final_subnet_id
+  vpc_security_group_ids      = [aws_security_group.ec2_sg.id]
+  key_name                    = var.ssh_key_name
 
   root_block_device {
     volume_size = 15
