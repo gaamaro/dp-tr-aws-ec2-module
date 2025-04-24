@@ -81,7 +81,7 @@ resource "aws_instance" "this" {
   key_name                    = var.ssh_key_name
 
   root_block_device {
-    volume_size = 15
+    volume_size = 30
     volume_type = "gp2"
   }
 
